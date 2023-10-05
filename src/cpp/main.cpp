@@ -80,6 +80,8 @@ struct RunConfig {
 
   // Seconds of extra silence to insert after a single phoneme
   optional<std::map<piper::Phoneme, float>> phonemeSilenceSeconds;
+
+  json input = "[]"_json;
 };
 
 void parseArgs(int argc, char *argv[], RunConfig &runConfig);
@@ -219,14 +221,17 @@ int main(int argc, char *argv[]) {
 
   string line;
   piper::SynthesisResult result;
-  while (getline(cin, line)) {
+
+
+//  while (getline(cin, line)) {
+  for (auto& [lineRootKey, lineRoot] : runConfig.input.items()) { 
     auto outputType = runConfig.outputType;
     auto speakerId = voice.synthesisConfig.speakerId;
     std::optional<filesystem::path> maybeOutputPath = runConfig.outputPath;
 
-    if (runConfig.jsonInput) {
+//    if (runConfig.jsonInput) {
       // Each line is a JSON object
-      json lineRoot = json::parse(line);
+//      json lineRoot = json::parse(line);
 
       // Text is required
       line = lineRoot["text"].get<std::string>();
@@ -253,7 +258,7 @@ int main(int argc, char *argv[]) {
           spdlog::warn("No speaker named: {}", speakerName);
         }
       }
-    }
+//    }
 
     // Timestamp is used for path to output WAV file
     const auto now = chrono::system_clock::now();
@@ -279,7 +284,7 @@ int main(int argc, char *argv[]) {
 
       filesystem::path outputPath = maybeOutputPath.value();
 
-      if (!runConfig.jsonInput) {
+/*      if (!runConfig.jsonInput) {
         // Read all of standard input before synthesizing.
         // Otherwise, we would overwrite the output file for each line.
         stringstream text;
@@ -287,9 +292,8 @@ int main(int argc, char *argv[]) {
         while (getline(cin, line)) {
           text << " " << line;
         }
-
         line = text.str();
-      }
+      }*/
 
       // Output audio to WAV file
       ofstream audioFile(outputPath.string(), ios::binary);
@@ -445,6 +449,9 @@ void parseArgs(int argc, char *argv[], RunConfig &runConfig) {
     if (arg == "-m" || arg == "--model") {
       ensureArg(argc, argv, i);
       runConfig.modelPath = filesystem::path(argv[++i]);
+    } else if (arg == "--input") {
+      ensureArg(argc, argv, i);
+      runConfig.input = json::parse(argv[++i]);
     } else if (arg == "-c" || arg == "--config") {
       ensureArg(argc, argv, i);
       modelConfigPath = filesystem::path(argv[++i]);
